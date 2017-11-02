@@ -495,37 +495,72 @@ class ModflowSfr2(Package):
             if line[0] != '#':
                 break
         # Item 1
-        if "reachinput" in line.lower():
-            """
-            When REACHINPUT is specified, variable ISFROPT is read in data set 1c.
-            ISFROPT can be used to change the default format for entering reach and segment data
-            or to specify that unsaturated flow beneath streams will be simulated.
-            """
-            reachinput = True
-        if "transroute" in line.lower():
-            """When TRANSROUTE is specified, optional variables IRTFLG, NUMTIM, WEIGHT, and FLWTOL
-            also must be specified in Item 1c.
-            """
-            transroute = True
-        if transroute or reachinput:
+        if "options" in line.lower():
             line = next(f)
-        if "tabfiles" in line.lower():
-            """
-            tabfiles
-            An optional character variable that is a flag to indicate that inflows to one or more stream
-            segments will be specified with tabular inflow files.
-            numtab
-            An integer value equal to the number of tabular inflow files that will be read if TABFILES
-            is specified. A separate input file is required for each segment that receives specified inflow.
-            Thus, the maximum value of NUMTAB that can be specified is equal to the total number of
-            segments specified in Item 1c with variables NSS. The name (Fname) and unit number (Nunit)
-            of each tabular file must be specified in the MODFLOW-2005 Name File using tile type (Ftype) DATA.
-            maxval
-
-            """
-            tabfiles, numtab, maxval = line.strip().split()
-            numtab, maxval = int(numtab), int(maxval)
-            line = next(f)
+            while 'end' not in line.lower():
+                if "reachinput" in line.lower():
+                    """
+                    When REACHINPUT is specified, variable ISFROPT is read in data set 1c.
+                    ISFROPT can be used to change the default format for entering reach and segment data
+                    or to specify that unsaturated flow beneath streams will be simulated.
+                    """
+                    reachinput = True
+                if "transroute" in line.lower():
+                    """When TRANSROUTE is specified, optional variables IRTFLG, NUMTIM, WEIGHT, and FLWTOL
+                    also must be specified in Item 1c.
+                    """
+                    transroute = True
+                if transroute or reachinput:
+                    line = next(f)
+                if "tabfiles" in line.lower():
+                    """
+                    tabfiles
+                    An optional character variable that is a flag to indicate that inflows to one or more stream
+                    segments will be specified with tabular inflow files.
+                    numtab
+                    An integer value equal to the number of tabular inflow files that will be read if TABFILES
+                    is specified. A separate input file is required for each segment that receives specified inflow.
+                    Thus, the maximum value of NUMTAB that can be specified is equal to the total number of
+                    segments specified in Item 1c with variables NSS. The name (Fname) and unit number (Nunit)
+                    of each tabular file must be specified in the MODFLOW-2005 Name File using tile type (Ftype) DATA.
+                    maxval
+        
+                    """
+                    tabfiles, numtab, maxval = line.strip().split()
+                    numtab, maxval = int(numtab), int(maxval)
+                    line = next(f)
+        else:
+            if "reachinput" in line.lower():
+                """
+                When REACHINPUT is specified, variable ISFROPT is read in data set 1c.
+                ISFROPT can be used to change the default format for entering reach and segment data
+                or to specify that unsaturated flow beneath streams will be simulated.
+                """
+                reachinput = True
+            if "transroute" in line.lower():
+                """When TRANSROUTE is specified, optional variables IRTFLG, NUMTIM, WEIGHT, and FLWTOL
+                also must be specified in Item 1c.
+                """
+                transroute = True
+            if transroute or reachinput:
+                line = next(f)
+            if "tabfiles" in line.lower():
+                """
+                tabfiles
+                An optional character variable that is a flag to indicate that inflows to one or more stream
+                segments will be specified with tabular inflow files.
+                numtab
+                An integer value equal to the number of tabular inflow files that will be read if TABFILES
+                is specified. A separate input file is required for each segment that receives specified inflow.
+                Thus, the maximum value of NUMTAB that can be specified is equal to the total number of
+                segments specified in Item 1c with variables NSS. The name (Fname) and unit number (Nunit)
+                of each tabular file must be specified in the MODFLOW-2005 Name File using tile type (Ftype) DATA.
+                maxval
+    
+                """
+                tabfiles, numtab, maxval = line.strip().split()
+                numtab, maxval = int(numtab), int(maxval)
+                line = next(f)
 
         # item 1c
         nstrm, nss, nsfrpar, nparseg, const, dleak, ipakcb, istcb2, \
