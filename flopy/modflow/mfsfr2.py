@@ -274,7 +274,8 @@ class ModflowSfr2(Package):
         self.url = 'sfr2.htm'
         self.nper = self.parent.nrow_ncol_nlay_nper[-1]
         self.nper = 1 if self.nper == 0 else self.nper  # otherwise iterations from 0, nper won't run
-
+        self.version = model.version
+        
         # Dataset 0 -----------------------------------------------------------------------
         self.heading = '# {} package for '.format(self.name[0]) + \
                        ' {}, '.format(model.version_types[model.version]) + \
@@ -1007,7 +1008,7 @@ class ModflowSfr2(Package):
                                                               self.nsfrsets))
         if self.nstrm < 0 or self.transroute:
             f_sfr.write('{:.0f} '.format(self.irtflag))
-            if self.irtflag < 0:
+            if self.irtflag > 0:
                 f_sfr.write('{:.0f} {:.8f} {:.8f} '.format(self.numtim,
                                                            self.weight,
                                                            self.flwtol))
@@ -1150,20 +1151,33 @@ class ModflowSfr2(Package):
         f_sfr.write('{0}\n'.format(self.heading))
 
         # Item 1
+        if self.version == 'mfnwt': 
+            f_sfr.write('options\n')
+
         if self.reachinput:
             """
             When REACHINPUT is specified, variable ISFROPT is read in data set 1c.
             ISFROPT can be used to change the default format for entering reach and segment data
             or to specify that unsaturated flow beneath streams will be simulated.
             """
-            f_sfr.write('options\n  reachinput \nend ')
+            if self.version == 'mfnwt': 
+                f_sfr.write('reachinput\n')
+            else:
+                f_sfr.write('reachinput ')
+
         if self.transroute:
             """When TRANSROUTE is specified, optional variables IRTFLG, NUMTIM, WEIGHT, and FLWTOL
             also must be specified in Item 1c.
             """
-            f_sfr.write('transroute')
+            if self.version == 'mfnwt': 
+                f_sfr.write('transroute\n')
+            else:
+                f_sfr.write('transroute ')
+
         if self.transroute or self.reachinput:
-            f_sfr.write('\n')
+            if self.version != 'mfnwt': 
+                f_sfr.write('\n')
+
         if self.tabfiles:
             """
             tabfiles
@@ -1179,6 +1193,9 @@ class ModflowSfr2(Package):
 
             """
             f_sfr.write('{} {} {}\n'.format(self.tabfiles, self.numtab, self.maxval))
+
+        if self.version == 'mfnwt': 
+            f_sfr.write('end\n')
 
         self._write_1c(f_sfr)
 
