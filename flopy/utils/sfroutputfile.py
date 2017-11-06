@@ -1,4 +1,5 @@
 import numpy as np
+import StringIO
 
 class SfrFile():
     """
@@ -31,15 +32,9 @@ class SfrFile():
 
     """
 
-
-
-    # non-float dtypes (default is float)
-    dtypes = {"layer": int,
-              "row": int,
-              "column": int,
-              "segment": int,
-              "reach": int}
-
+    names = ["layer", "row", "column", "segment", "reach", "Qin",
+             "Qaquifer", "Qout", "Qovr", "Qprecip", "Qet",
+             "stage", "depth", "width", "Cond", "gradient"]
     def __init__(self, filename, geometries=None, verbose=False):
         """
         Class constructor.
@@ -49,29 +44,21 @@ class SfrFile():
             self.pd = pd
         except:
             print('This method requires pandas')
-            self.pd = None
-            return
 
         # get the number of rows to skip at top
         self.filename = filename
-        self.sr, self.ncol = self.get_skiprows_ncols()
-        self.names = names = ["layer", "row", "column", "segment", "reach",
-                              "Qin", "Qaquifer", "Qout", "Qovr",
-                              "Qprecip", "Qet",
-                              "stage", "depth", "width", "Cond"]
-        self._set_names() # ensure correct number of column names
+        self.sr = self.get_skiprows()
         self.times = self.get_times()
         self.geoms = None # not implemented yet
         self.df = None
 
-    def get_skiprows_ncols(self):
+    def get_skiprows(self):
         """Get the number of rows to skip at the top."""
         with open(self.filename) as input:
             for i, line in enumerate(input):
                 line = line.strip().split()
                 if len(line) > 0 and line[0].isdigit():
-                    ncols = len(line)
-                    return i, ncols
+                    return i
 
     def get_times(self):
         """Parse the stress period/timestep headers."""
@@ -81,16 +68,8 @@ class SfrFile():
                 if 'STEP' in line:
                     line = line.strip().split()
                     kper, kstp = int(line[3]) - 1, int(line[5]) - 1
-                    kstpkper.append((kstp, kper))
+                    kstpkper.append((kper, kstp))
         return kstpkper
-
-    def _set_names(self):
-        """Pad column names so that correct number is used 
-        (otherwise Pandas read_csv may drop columns)"""
-        if len(self.names) < self.ncol:
-            n = len(self.names)
-            for i in range(n, self.ncol):
-                self.names.append('col{}'.format(i+1))
 
     @staticmethod
     def get_nstrm(df):
@@ -101,36 +80,47 @@ class SfrFile():
         elif len(wherereach1) > 1:
             return wherereach1[1]
 
+    def strip_text(self):
+        sfr_filter = StringIO.StringIO()
+        sfr_lines = []
+        with open(self.filename, 'r') as f:
+            for line in f:
+                if 'S' in line:
+                    continue
+                if 'L' in line:
+                    continue
+                if len(line) == 1:
+                    continue
+                sfr_lines += [line]
+        sfr_filter.writelines(sfr_lines)
+        sfr_filter.seek(0)
+        return sfr_filter
+
     def get_dataframe(self):
         """Read the whole text file into a pandas dataframe."""
 
-        df = self.pd.read_csv(self.filename, delim_whitespace=True,
-                         header=None, names=self.names,
-                         error_bad_lines=False,
-                         skiprows=self.sr)
-        # drop text between stress periods; convert to numeric
-        df['layer'] = self.pd.to_numeric(df.layer, errors='coerce')
-        df.dropna(axis=0, inplace=True)
-        # convert to proper dtypes
-        for c in df.columns:
-            df[c] = df[c].astype(self.dtypes.get(c, float))
+        sfr_buf = self.strip_text()
 
+        df = self.pd.read_csv(sfr_buf, delim_whitespace=True,
+                         header=None, names=self.names,
+                         error_bad_lines=False)
+        
         # add time, reachID, and reach geometry (if it exists)
+        # @@ I added this line as the get_nstrm was not getting the right number of sfr segments / reaches
         self.nstrm = self.get_nstrm(df)
-        per = []
-        timestep = []
-        dftimes = []
-        times = self.get_times()
-        newper = df.segment.diff().values < 0
-        kstpkper = times.pop(0)
-        for np in newper:
-            if np:
-                kstpkper = times.pop(0)
-            dftimes.append(kstpkper)
-        df['kstpkper'] = dftimes
-        df['k'] = df['layer'] - 1
-        df['i'] = df['row'] - 1
-        df['j'] = df['column'] -1
+        time = []
+        times = []
+        geoms = []
+        reachID = []
+        for ts in self.times:
+            #print ts
+            #time += [ts[1]] * np.abs(self.nstrm)
+            #times.append(ts[1])
+            time += [ts[0]] * np.abs(self.nstrm)
+            times.append(ts[0])
+            reachID += list(range(self.nstrm))
+        df['time'] = time
+        df['reachID'] = reachID
 
         if self.geoms is not None:
             geoms = self.geoms * self.nstrm
@@ -170,7 +160,3 @@ class SfrFile():
                 else:
                     print('No results for segment {}, reach {}!'.format(s, r))
         return results
-
-
-
-
